@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+require 'mfd'
+
+Mfd::Cli.new.parse_options!(ARGV)
