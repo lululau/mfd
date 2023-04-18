@@ -4,6 +4,8 @@ require 'mfd/asset'
 module Mfd
   class Cli
 
+    NOW = Time.now
+
     def initialize
       @predicates = ['(true)']
       @print_command = false
@@ -124,10 +126,7 @@ module Mfd
       end
 
       @opt.on('-e file-ext-name', '--type file-ext-name', ".e.g  -e 'mp3'
-        #{' ' * 35}ContentType 字符串不便记忆，为了方便使用，本程序将常用的
-        #{' ' * 35}文件类型的后缀名和 kMDItemKind 字符串建立关联，可以使用本选项
-        #{' ' * 35}来指定要搜索的文件的后缀名, 可以使用\"-l\"选项查看所有支持的后
-        #{' ' * 35}缀名以及关联
+        #{' ' * 35}搜索文件扩展名等于指定值的文件
         ") do |type|
         if Mfd::Asset::KIND_MAP[type]
           @predicates << '(kMDItemFSName == "*.%s" || kMDItemKind == "%s"cdw)' % [type, escape(Mfd::Asset::KIND_MAP[type])]

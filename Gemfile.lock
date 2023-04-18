@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    mfd (0.1.0)
+    mfd (0.2.0)
 
 GEM
   remote: https://rubygems.org/
@@ -35,7 +35,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler (~> 1.17)
+  bundler (>= 1.17)
   mfd!
   pry-byebug (>= 3.6.0)
   rake (~> 10.0)
