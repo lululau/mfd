@@ -1,5 +1,5 @@
-require 'mfd/asset'
 require 'optparse'
+require 'mfd/asset'
 
 module Mfd
   class Cli
@@ -129,23 +129,11 @@ module Mfd
         #{' ' * 35}来指定要搜索的文件的后缀名, 可以使用\"-l\"选项查看所有支持的后
         #{' ' * 35}缀名以及关联
         ") do |type|
-        unless Mfd::Asset::KIND_MAP[type]
-          STDERR.puts "Not supported file ext name: #{type}, use `mfd -l' to see all supported file ext names`"
-          exit(1)
+        if Mfd::Asset::KIND_MAP[type]
+          @predicates << '(kMDItemFSName == "*.%s" || kMDItemKind == "%s"cdw)' % [type, escape(Mfd::Asset::KIND_MAP[type])]
+        else
+          @predicates << 'kMDItemFSName == "*.%s"' % type
         end
-        @predicates << 'kMDItemKind == "*%s*"cdw' % escape(Mfd::Asset::KIND_MAP[type])
-      end
-
-      @opt.on('-l', '--list-types', "kMDItemKind 字符串不便记忆，为了方便使用，本程序将常用的
-        #{' ' * 35}文件类型的后缀名和 kMDItemKind 字符串建立关联，使用本选项
-        #{' ' * 35}看所有支持的后缀名以及关联
-        ") do
-        puts
-        Mfd::Asset::KIND_MAP.keys.sort.each do |e|
-          printf "\t%-10s : %s\n", e, Mfd::Asset::KIND_MAP[e]
-        end
-        puts
-        exit
       end
 
       @opt.on('-k kind', '--kind kind', "e.g. --kind \"HTML Document\"
