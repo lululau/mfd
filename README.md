@@ -66,14 +66,7 @@ options:
                                            Ruby 脚本文件：mdfind4 -c ruby
 
     -e, --type file-ext-name         .e.g  -e 'mp3'
-                                           ContentType 字符串不便记忆，为了方便使用，本程序将常用的
-                                           文件类型的后缀名和 kMDItemKind 字符串建立关联，可以使用本选项
-                                           来指定要搜索的文件的后缀名, 可以使用"-l"选项查看所有支持的后
-                                           缀名以及关联
-
-    -l, --list-types                 kMDItemKind 字符串不便记忆，为了方便使用，本程序将常用的
-                                           文件类型的后缀名和 kMDItemKind 字符串建立关联，使用本选项
-                                           看所有支持的后缀名以及关联
+                                            搜索文件扩展名等于指定值的文件
 
     -k, --kind kind                  e.g. --kind "HTML Document"
                                            "-k"选项是另外一个用来指定文件类型的选项，它使用
