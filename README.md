@@ -59,19 +59,30 @@ options:
 
     -q, --query query                e.g. --query "关键字"
 
-    -c, --content-type contenttype   e.g. --contenttype com.omnigroup.omnigraffle.graffle
+    -c, --content-type [contenttype] e.g. --contenttype com.omnigroup.omnigraffle.graffle
                                            搜索 "kMDItemContentType" 属性等于指定值的文件，可以不
                                            指定完整的 Content Type，例如 Ruby 脚本的 Content Type
                                            为 "public.ruby-script"，但是可以使用下面的命令所有所有
                                            Ruby 脚本文件：mdfind4 -c ruby
+                                           搜索文件夹（目录）而非普通文件: -c public.folder  或  -c folder
+                                           也可从样例目录提取: -c @~/Documents
+                                           若不指定选项值（mfd -c），则列出搜索范围内所有
+                                           kMDItemContentType 取值，便于确认可用的 Content Type。
+                                           限定目录时请写成: mfd -c -- ~/Documents
 
     -e, --type file-ext-name         .e.g  -e 'mp3'
                                             搜索文件扩展名等于指定值的文件
 
-    -k, --kind kind                  e.g. --kind "HTML Document"
+    -k, --kind [kind]                e.g. --kind "HTML Document"
                                            "-k"选项是另外一个用来指定文件类型的选项，它使用
                                            "kMDItemKind"属性来搜索文件. 例如, 搜索邮件: "-k 邮件信息"
                                            搜索 Safari 历史记录: "-k 'Safari 历史记录项目'"
+                                           搜索文件夹（目录）: -k 文件夹  （英文系统下为 -k Folder）
+                                           也可从样例目录提取: -k @~/Documents
+                                           若不指定选项值（mfd -k 或 mfd -l），则列出内置 KIND_MAP
+                                           （扩展名及其对应的 kMDItemKind），不扫描磁盘。
+
+    -l, --list-kinds                 列出内置 KIND_MAP（扩展名 → kMDItemKind），等价于不带选项值的 -k
 
     -b, --bigger-than size           e.g. --bigger-than 100000
                                            搜索文件大小大于或等于给定值的文件，可以使用 t, g, m, k 等单位,
@@ -101,6 +112,7 @@ options:
 
     -d, --downloadfrom url           搜索从URL下载的文件
     -n, --name name                  按文件名称搜索, 自动支持模糊匹配, 无需指定通配符
+    -N, --name-exact name            按文件名称精确匹配（区分大小写，需包含扩展名）
     -0, --null                       Prints an ASCII NUL character after each result path.
                                            This is useful when used in conjunction with
                                            xargs -0.

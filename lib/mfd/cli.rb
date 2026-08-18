@@ -12,6 +12,8 @@ module Mfd
       @ascii_null = false
       @live = false
       @count = false
+      @list_kinds = false
+      @list_content_types = false
 
       @opt = OptionParser.new
       declare_options!
@@ -25,6 +27,11 @@ module Mfd
 
       @opt.parse!(args)
 
+      if @list_kinds
+        print_kind_map
+        return unless @list_content_types
+      end
+
       if args.size == 1
         dir = args.first
         dir = File.expand_path dir unless dir =~ /^\//
@@ -34,6 +41,11 @@ module Mfd
       end
 
       query_string = @predicates.join(' && ')
+
+      if @list_content_types
+        list_content_types(scope, query_string)
+        return
+      end
 
       cmd = "mdfind #{scope} \
   #{@ascii_null ? '-0' : ''} \
@@ -115,14 +127,23 @@ module Mfd
         @predicates << 'kMDItemTextContent == "%s"cdw' % escape(query)
       end
 
-      @opt.on('-c contenttype', '--content-type contenttype', "e.g. --contenttype com.omnigroup.omnigraffle.graffle
+      @opt.on('-c [contenttype]', '--content-type [contenttype]', "e.g. --contenttype com.omnigroup.omnigraffle.graffle
         #{' ' * 35}搜索 \"kMDItemContentType\" 属性等于指定值的文件，可以不
         #{' ' * 35}指定完整的 Content Type，例如 Ruby 脚本的 Content Type
         #{' ' * 35}为 \"public.ruby-script\"，但是可以使用下面的命令所有所有
         #{' ' * 35}Ruby 脚本文件：mdfind4 -c ruby
+        #{' ' * 35}搜索文件夹（目录）而非普通文件: -c public.folder  或  -c folder
+        #{' ' * 35}也可从样例目录提取: -c @~/Documents
+        #{' ' * 35}若不指定选项值（mfd -c），则列出搜索范围内所有
+        #{' ' * 35}kMDItemContentType 取值，便于确认可用的 Content Type。
+        #{' ' * 35}限定目录时请写成: mfd -c -- ~/Documents
         ") do |contenttype|
-        @predicates << 'kMDItemContentType == "%s"cdw' % (contenttype.start_with?('@') ?
-          prop_value_from_file(contenttype, 'kMDItemContentType') : escape(contenttype))
+        if contenttype.nil?
+          @list_content_types = true
+        else
+          @predicates << 'kMDItemContentType == "%s"cdw' % (contenttype.start_with?('@') ?
+            prop_value_from_file(contenttype, 'kMDItemContentType') : escape(contenttype))
+        end
       end
 
       @opt.on('-e file-ext-name', '--type file-ext-name', ".e.g  -e 'mp3'
@@ -135,13 +156,26 @@ module Mfd
         end
       end
 
-      @opt.on('-k kind', '--kind kind', "e.g. --kind \"HTML Document\"
+      @opt.on('-k [kind]', '--kind [kind]', "e.g. --kind \"HTML Document\"
         #{' ' * 35}\"-k\"选项是另外一个用来指定文件类型的选项，它使用
         #{' ' * 35}\"kMDItemKind\"属性来搜索文件. 例如, 搜索邮件: \"-k 邮件信息\"
         #{' ' * 35}搜索 Safari 历史记录: \"-k 'Safari 历史记录项目'\"
+        #{' ' * 35}搜索文件夹（目录）: -k 文件夹  （英文系统下为 -k Folder）
+        #{' ' * 35}也可从样例目录提取: -k @~/Documents
+        #{' ' * 35}若不指定选项值（mfd -k 或 mfd -l），则列出内置 KIND_MAP
+        #{' ' * 35}（扩展名及其对应的 kMDItemKind），不扫描磁盘。
         ") do |kind|
-        @predicates << 'kMDItemKind == "*%s*"cdw' % (kind.start_with?('@') ?
-          prop_value_from_file(kind, 'kMDItemKind') : escape(kind))
+        if kind.nil?
+          @list_kinds = true
+        else
+          @predicates << 'kMDItemKind == "*%s*"cdw' % (kind.start_with?('@') ?
+            prop_value_from_file(kind, 'kMDItemKind') : escape(kind))
+        end
+      end
+
+      @opt.on('-l', '--list-kinds', "列出内置 KIND_MAP（扩展名 → kMDItemKind），等价于不带选项值的 -k
+        ") do
+        @list_kinds = true
       end
 
       @opt.on('-b size', '--bigger-than size', "e.g. --bigger-than 100000
@@ -206,6 +240,10 @@ module Mfd
         @predicates << 'kMDItemFSName == "%s"cdw' % escape(name)
       end
 
+      @opt.on('-N name', '--name-exact name', '按文件名称精确匹配（区分大小写，需包含扩展名）') do |name|
+        @predicates << 'kMDItemFSName == "%s"' % escape_literal(name)
+      end
+
       @opt.on('-0', '--null', "Prints an ASCII NUL character after each result path.
         #{' ' * 35}This is useful when used in conjunction with
         #{' ' * 35}xargs -0.") do
@@ -237,6 +275,77 @@ module Mfd
 
     def escape(str)
       str.gsub(/"/, '\\"')
+    end
+
+    def escape_literal(str)
+      str.gsub(/[\\*?"]/) { |char| '\\' + char }
+    end
+
+    def print_kind_map
+      width = Mfd::Asset::KIND_MAP.keys.map(&:size).max
+      Mfd::Asset::KIND_MAP.sort.each do |ext, kind|
+        printf "%-*s  %s\n", width, ext, kind
+      end
+    end
+
+    def list_content_types(scope, query_string)
+      if scope.empty?
+        $stderr.puts '未指定搜索目录，将遍历整个 Spotlight 索引（可能非常慢）。建议加上目录，例如: mfd -c -- ~/Documents'
+      end
+
+      emit_unique_md_values('kMDItemContentType', scope, query_string)
+    end
+
+    def emit_unique_md_values(attr, scope, query_string)
+      unique = {}
+      batch = []
+
+      flush = lambda do
+        unless batch.empty?
+          md_values_for_paths(attr, batch).each do |value|
+            next if value.empty? || unique[value]
+            unique[value] = true
+            puts value
+            $stdout.flush
+          end
+          batch.clear
+        end
+      end
+
+      each_mdfind_path(scope, query_string) do |path|
+        next unless usable_fs_path?(path)
+        batch << path
+        flush.call if batch.size >= 100
+      end
+      flush.call
+    end
+
+    def md_values_for_paths(attr, paths)
+      IO.popen(['mdls', '-name', attr, '-raw', '-nullMarker', '', *paths], 'r', err: File::NULL) do |io|
+        io.read.split("\0")
+      end
+    end
+
+    def usable_fs_path?(path)
+      path.start_with?('/') && File.exist?(path)
+    end
+
+    def each_mdfind_path(scope, query_string)
+      cmd = "mdfind #{scope} -literal -0 '#{query_string}'"
+      puts cmd if @print_command
+
+      IO.popen(cmd, 'r') do |io|
+        buf = ''
+        while (chunk = io.read(65_536))
+          buf << chunk
+          while (idx = buf.index("\0"))
+            path = buf.slice!(0, idx)
+            buf.slice!(0)
+            yield path unless path.empty?
+          end
+        end
+        yield buf unless buf.empty?
+      end
     end
 
     def calculate_size(size_str)
